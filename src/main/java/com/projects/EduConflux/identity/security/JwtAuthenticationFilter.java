@@ -1,5 +1,6 @@
 package com.projects.EduConflux.identity.security;
 
+import com.projects.EduConflux.common.security.AuthenticatedUser;
 import com.projects.EduConflux.identity.service.JwtService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -50,9 +51,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
                     .toList();
 
+            System.out.println("JWT EMAIL: " + email);
+            System.out.println("JWT ROLES: " + roles);
+            System.out.println("AUTHORITIES: " + authorities);
+
+            AuthenticatedUser authenticatedUser =
+                    new AuthenticatedUser(
+                            claims.get("userId", Long.class),
+                            email,
+                            claims.get("institutionId", Long.class),
+                            roles
+                    );
+
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
-                            email,
+                            authenticatedUser,
                             null,
                             authorities
                     );
@@ -60,6 +73,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder
                     .getContext()
                     .setAuthentication(authentication);
+
+            System.out.println(
+                    "AUTHENTICATED: " +
+                            SecurityContextHolder.getContext()
+                                    .getAuthentication()
+                                    .getAuthorities()
+            );
 
         } catch (Exception e) {
 

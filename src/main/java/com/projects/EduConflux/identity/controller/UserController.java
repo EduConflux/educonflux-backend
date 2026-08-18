@@ -17,6 +17,7 @@ public class UserController {
 
     @PostMapping
     public ResponseEntity<UserResponse> createUser(
+
             @Valid @RequestBody UserRequest request) {
 
         return ResponseEntity.ok(

@@ -37,8 +37,11 @@ public class User {
     @Column(nullable = false, length = 150)
     private String email;
 
-    @Column(nullable = false)
+    @Column
     private String password;
+
+    @Column(nullable = false)
+    private String personalEmail;
 
     @Column(nullable = false, length = 100)
     private String firstName;
@@ -82,4 +85,8 @@ public class User {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean firstLogin = true;
 }

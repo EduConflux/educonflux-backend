@@ -12,6 +12,7 @@ public class UserResponse {
     private Long id;
     private Long institutionId;
     private String email;
+    private String personalEmail;
     private String firstName;
     private String lastName;
     private String phone;
@@ -21,4 +22,5 @@ public class UserResponse {
     private LocalDateTime lastLoginAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private boolean firstLogin;
 }

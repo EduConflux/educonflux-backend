@@ -1,5 +1,7 @@
 package com.projects.EduConflux.identity.service;
 
+import com.projects.EduConflux.common.security.SecurityUtils;
+import com.projects.EduConflux.identity.dto.ChangePasswordRequest;
 import com.projects.EduConflux.identity.dto.UserRequest;
 import com.projects.EduConflux.identity.dto.UserResponse;
 import com.projects.EduConflux.identity.entity.Role;
@@ -12,8 +14,6 @@ import com.projects.EduConflux.identity.repository.UserRoleRepository;
 import com.projects.EduConflux.institution.entity.Institution;
 import com.projects.EduConflux.institution.repository.InstitutionRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,31 +31,26 @@ public class UserService {
     private final InstitutionRepository institutionRepository;
     private final PasswordEncoder passwordEncoder;
 
+
     @Transactional
     public UserResponse createUser(UserRequest request) {
 
-        String temporaryPassword =
-                UUID.randomUUID().toString();
-
         // Get the currently authenticated admin's email
-        Authentication authentication =
-                SecurityContextHolder.getContext().getAuthentication();
+        Long institutionId =
+                SecurityUtils.getCurrentInstitutionId();
 
-        String adminEmail = authentication.getName();
+        Institution institution =
+                institutionRepository.findById(institutionId)
+                        .orElseThrow(() ->
+                                new RuntimeException("Institution not found"));
 
-        // Find the admin
-        User admin = userRepository.findByEmail(adminEmail)
-                .orElseThrow(() ->
-                        new RuntimeException("Admin account not found"));
-
-        // Make sure the admin actually belongs to an institution
-        Institution institution = admin.getInstitution();
 
         // Find requested role
         Role role = roleRepository
                 .findByName(request.getRole())
                 .orElseThrow(() ->
                         new RuntimeException("Role not found"));
+
 
         // Only allow normal institution-level roles to be created
         if (role.getName().equals("PLATFORM_ADMIN") ||
@@ -66,16 +61,27 @@ public class UserService {
             );
         }
 
+        String temporaryPassword = generateTemporaryPassword();
+
+        String encodedPassword =
+                passwordEncoder.encode(temporaryPassword);
+
+        System.out.println(
+                "TEMPORARY PASSWORD: " + temporaryPassword
+        );
+
         // Create the user
         User user = User.builder()
                 .institution(institution)
                 .email(request.getEmail())
-                .password(passwordEncoder.encode(temporaryPassword))
+                .email(request.getPersonalEmail())
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .phone(request.getPhone())
                 .profileImageUrl(request.getProfileImageUrl())
-                .status(UserStatus.PENDING)
+                .password(encodedPassword)
+                .status(UserStatus.ACTIVE)
+                .firstLogin(true)
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -99,10 +105,11 @@ public class UserService {
             List<String> roles) {
 
         UserResponse response = new UserResponse();
-
+        response.setFirstLogin(user.isFirstLogin());
         response.setId(user.getId());
         response.setInstitutionId(user.getInstitution().getId());
         response.setEmail(user.getEmail());
+        response.setPersonalEmail(user.getPersonalEmail());
         response.setFirstName(user.getFirstName());
         response.setLastName(user.getLastName());
         response.setPhone(user.getPhone());
@@ -114,5 +121,41 @@ public class UserService {
         response.setUpdatedAt(user.getUpdatedAt());
 
         return response;
+    }
+
+    private String generateTemporaryPassword() {
+        return UUID.randomUUID()
+                .toString()
+                .replace("-", "")
+                .substring(0, 12);
+    }
+
+    @Transactional
+    public void changePassword(
+            Long userId,
+            ChangePasswordRequest request) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        if (!passwordEncoder.matches(
+                request.getCurrentPassword(),
+                user.getPassword())) {
+
+            throw new RuntimeException(
+                    "Current password is incorrect"
+            );
+        }
+
+        user.setPassword(
+                passwordEncoder.encode(
+                        request.getNewPassword()
+                )
+        );
+
+        user.setFirstLogin(false);
+
+        userRepository.save(user);
     }
 }

@@ -53,7 +53,8 @@ public class AuthService {
                 token,
                 user.getId(),
                 user.getEmail(),
-                roles
+                roles,
+                user.isFirstLogin()
         );
     }
 }
