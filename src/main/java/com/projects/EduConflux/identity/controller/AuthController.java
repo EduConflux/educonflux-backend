@@ -1,5 +1,6 @@
 package com.projects.EduConflux.identity.controller;
 
+import com.projects.EduConflux.common.email.EmailService;
 import com.projects.EduConflux.common.security.SecurityUtils;
 import com.projects.EduConflux.identity.dto.ChangePasswordRequest;
 import com.projects.EduConflux.identity.dto.LoginRequest;
@@ -21,6 +22,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final UserService userService;
+    private final EmailService emailService;
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(

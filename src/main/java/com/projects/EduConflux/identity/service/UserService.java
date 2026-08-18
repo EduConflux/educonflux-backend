@@ -1,5 +1,6 @@
 package com.projects.EduConflux.identity.service;
 
+import com.projects.EduConflux.common.email.EmailService;
 import com.projects.EduConflux.common.security.SecurityUtils;
 import com.projects.EduConflux.identity.dto.ChangePasswordRequest;
 import com.projects.EduConflux.identity.dto.UserRequest;
@@ -30,6 +31,7 @@ public class UserService {
     private final UserRoleRepository userRoleRepository;
     private final InstitutionRepository institutionRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
 
     @Transactional
@@ -66,22 +68,17 @@ public class UserService {
         String encodedPassword =
                 passwordEncoder.encode(temporaryPassword);
 
-        System.out.println(
-                "TEMPORARY PASSWORD: " + temporaryPassword
-        );
-
         // Create the user
         User user = User.builder()
                 .institution(institution)
                 .email(request.getEmail())
-                .email(request.getPersonalEmail())
+                .personalEmail(request.getPersonalEmail())
+                .password(encodedPassword)
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .phone(request.getPhone())
                 .profileImageUrl(request.getProfileImageUrl())
-                .password(encodedPassword)
                 .status(UserStatus.ACTIVE)
-                .firstLogin(true)
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -93,6 +90,12 @@ public class UserService {
                 .build();
 
         userRoleRepository.save(userRole);
+
+        emailService.sendCredentials(
+                savedUser.getPersonalEmail(),
+                savedUser.getEmail(),
+                temporaryPassword
+        );
 
         return toResponse(
                 savedUser,
