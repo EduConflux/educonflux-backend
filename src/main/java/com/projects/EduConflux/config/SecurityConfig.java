@@ -20,18 +20,61 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http)
             throws Exception {
+
         http
                 .csrf(csrf -> csrf.disable())
+
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/admin/users")
+
+                        // Public authentication endpoints
+                        .requestMatchers("/api/auth/login")
+                        .permitAll()
+
+                        // Authenticated users only
+                        .requestMatchers("/api/auth/change-password")
+                        .authenticated()
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/admin/users/**"
+                        )
                         .hasRole("INSTITUTION_ADMIN")
-                        .anyRequest().authenticated()
+
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/admin/users/**"
+                        )
+                        .hasRole("INSTITUTION_ADMIN")
+
+                        .requestMatchers(
+                                HttpMethod.PATCH,
+                                "/api/admin/users/*/deactivate"
+                        )
+                        .hasRole("INSTITUTION_ADMIN")
+
+                        .requestMatchers(
+                                HttpMethod.PATCH,
+                                "/api/admin/users/*/activate"
+                        )
+                        .hasRole("INSTITUTION_ADMIN")
+
+                        // Institution admin only
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/admin/users"
+                        )
+                        .hasRole("INSTITUTION_ADMIN")
+
+                        // Everything else requires authentication
+                        .anyRequest()
+                        .authenticated()
                 )
+
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
                 );
+
         return http.build();
     }
 }

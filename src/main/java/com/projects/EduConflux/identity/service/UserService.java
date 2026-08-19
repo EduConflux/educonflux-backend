@@ -3,6 +3,7 @@ package com.projects.EduConflux.identity.service;
 import com.projects.EduConflux.common.email.EmailService;
 import com.projects.EduConflux.common.security.SecurityUtils;
 import com.projects.EduConflux.identity.dto.ChangePasswordRequest;
+import com.projects.EduConflux.identity.dto.UpdateUserRequest;
 import com.projects.EduConflux.identity.dto.UserRequest;
 import com.projects.EduConflux.identity.dto.UserResponse;
 import com.projects.EduConflux.identity.entity.Role;
@@ -101,6 +102,119 @@ public class UserService {
                 savedUser,
                 List.of(role.getName())
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserResponse> getUsers() {
+
+        Long institutionId =
+                SecurityUtils.getCurrentInstitutionId();
+
+        List<User> users =
+                userRepository.findAllByInstitutionId(institutionId);
+
+        return users.stream()
+                .map(user -> {
+
+                    List<String> roles =
+                            userRoleRepository
+                                    .findByUserId(user.getId())
+                                    .stream()
+                                    .map(userRole ->
+                                            userRole.getRole().getName()
+                                    )
+                                    .toList();
+
+                    return toResponse(user, roles);
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponse getUser(Long userId) {
+
+        Long institutionId =
+                SecurityUtils.getCurrentInstitutionId();
+
+        User user = userRepository
+                .findByIdAndInstitutionId(userId, institutionId)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        List<String> roles =
+                userRoleRepository
+                        .findByUserId(user.getId())
+                        .stream()
+                        .map(userRole ->
+                                userRole.getRole().getName()
+                        )
+                        .toList();
+
+        return toResponse(user, roles);
+    }
+
+    @Transactional
+    public UserResponse updateUser(
+            Long userId,
+            UpdateUserRequest request) {
+
+        Long institutionId =
+                SecurityUtils.getCurrentInstitutionId();
+
+        User user = userRepository
+                .findByIdAndInstitutionId(userId, institutionId)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        user.setPersonalEmail(request.getPersonalEmail());
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setPhone(request.getPhone());
+        user.setProfileImageUrl(request.getProfileImageUrl());
+
+        User savedUser = userRepository.save(user);
+
+        List<String> roles =
+                userRoleRepository
+                        .findByUserId(savedUser.getId())
+                        .stream()
+                        .map(userRole ->
+                                userRole.getRole().getName())
+                        .toList();
+
+        return toResponse(savedUser, roles);
+    }
+
+    @Transactional
+    public void deactivateUser(Long userId) {
+
+        Long institutionId =
+                SecurityUtils.getCurrentInstitutionId();
+
+        User user = userRepository
+                .findByIdAndInstitutionId(userId, institutionId)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        user.setStatus(UserStatus.INACTIVE);
+
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void activateUser(Long userId) {
+
+        Long institutionId =
+                SecurityUtils.getCurrentInstitutionId();
+
+        User user = userRepository
+                .findByIdAndInstitutionId(userId, institutionId)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        user.setStatus(UserStatus.ACTIVE);
+
+        userRepository.save(user);
     }
 
     private UserResponse toResponse(

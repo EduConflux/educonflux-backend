@@ -1,8 +1,6 @@
 package com.projects.EduConflux.identity.controller;
 
-import com.projects.EduConflux.common.email.EmailService;
 import com.projects.EduConflux.common.security.SecurityUtils;
-import com.projects.EduConflux.identity.dto.ChangePasswordRequest;
 import com.projects.EduConflux.identity.dto.LoginRequest;
 import com.projects.EduConflux.identity.dto.LoginResponse;
 import com.projects.EduConflux.identity.service.AuthService;
@@ -12,8 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.projects.EduConflux.identity.dto.ChangePasswordRequest;
-import com.projects.EduConflux.common.security.SecurityUtils;
-import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -22,7 +18,6 @@ public class AuthController {
 
     private final AuthService authService;
     private final UserService userService;
-    private final EmailService emailService;
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(
