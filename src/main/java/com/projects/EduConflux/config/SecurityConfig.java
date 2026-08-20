@@ -68,6 +68,21 @@ public class SecurityConfig {
                         .requestMatchers("/api/institutions/**")
                         .hasAnyRole("PLATFORM_ADMIN", "INSTITUTION_ADMIN")
 
+                        .requestMatchers("/api/admin/academic-years/**")
+                        .hasRole("INSTITUTION_ADMIN")
+
+                        .requestMatchers("/api/admin/departments/**")
+                        .hasRole("INSTITUTION_ADMIN")
+
+                        .requestMatchers("/api/admin/programs/**")
+                        .hasRole("INSTITUTION_ADMIN")
+
+                        .requestMatchers("/api/admin/semesters/**")
+                        .hasRole("INSTITUTION_ADMIN")
+
+                        .requestMatchers("/api/admin/class-sections/**")
+                        .hasRole("INSTITUTION_ADMIN")
+
                         // Everything else requires authentication
                         .anyRequest()
                         .authenticated()
