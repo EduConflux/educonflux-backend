@@ -2,6 +2,7 @@ package com.projects.EduConflux.institution.controller;
 
 import com.projects.EduConflux.institution.dto.InstitutionRequest;
 import com.projects.EduConflux.institution.dto.InstitutionResponse;
+import com.projects.EduConflux.institution.entity.InstitutionStatus;
 import com.projects.EduConflux.institution.service.InstitutionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -59,5 +60,15 @@ public class InstitutionController {
         institutionService.deleteInstitution(id);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<InstitutionResponse> updateInstitutionStatus(
+            @PathVariable Long id,
+            @RequestParam InstitutionStatus status) {
+
+        return ResponseEntity.ok(
+                institutionService.updateInstitutionStatus(id, status)
+        );
     }
 }
