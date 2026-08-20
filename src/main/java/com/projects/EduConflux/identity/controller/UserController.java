@@ -29,10 +29,12 @@ public class UserController {
     }
 
     @GetMapping
-    public ResponseEntity<List<UserResponse>> getUsers() {
+    public ResponseEntity<List<UserResponse>> getUsers(
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String status) {
 
         return ResponseEntity.ok(
-                userService.getUsers()
+                userService.getUsers(role, status)
         );
     }
 

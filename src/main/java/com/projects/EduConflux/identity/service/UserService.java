@@ -105,13 +105,36 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public List<UserResponse> getUsers() {
+    public List<UserResponse> getUsers(
+            String role,
+            String status) {
 
         Long institutionId =
                 SecurityUtils.getCurrentInstitutionId();
 
+        UserStatus userStatus = null;
+
+        if (status != null && !status.isBlank()) {
+
+            try {
+                userStatus =
+                        UserStatus.valueOf(
+                                status.toUpperCase()
+                        );
+            } catch (IllegalArgumentException e) {
+
+                throw new RuntimeException(
+                        "Invalid user status: " + status
+                );
+            }
+        }
+
         List<User> users =
-                userRepository.findAllByInstitutionId(institutionId);
+                userRepository.findUsersWithFilters(
+                        institutionId,
+                        role,
+                        userStatus
+                );
 
         return users.stream()
                 .map(user -> {
