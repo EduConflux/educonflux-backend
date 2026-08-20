@@ -6,6 +6,10 @@ import com.projects.EduConflux.identity.dto.UserResponse;
 import com.projects.EduConflux.identity.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,12 +33,48 @@ public class UserController {
     }
 
     @GetMapping
-    public ResponseEntity<List<UserResponse>> getUsers(
-            @RequestParam(required = false) String role,
-            @RequestParam(required = false) String status) {
+    public ResponseEntity<Page<UserResponse>> getUsers(
+
+            @RequestParam(required = false)
+            String role,
+
+            @RequestParam(required = false)
+            String status,
+
+            @RequestParam(required = false)
+            String search,
+
+            @RequestParam(defaultValue = "0")
+            int page,
+
+            @RequestParam(defaultValue = "20")
+            int size,
+
+            @RequestParam(defaultValue = "createdAt")
+            String sort,
+
+            @RequestParam(defaultValue = "desc")
+            String direction) {
+
+        Sort.Direction sortDirection =
+                direction.equalsIgnoreCase("asc")
+                        ? Sort.Direction.ASC
+                        : Sort.Direction.DESC;
+
+        Pageable pageable =
+                PageRequest.of(
+                        page,
+                        size,
+                        Sort.by(sortDirection, sort)
+                );
 
         return ResponseEntity.ok(
-                userService.getUsers(role, status)
+                userService.getUsers(
+                        role,
+                        status,
+                        search,
+                        pageable
+                )
         );
     }
 

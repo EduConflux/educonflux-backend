@@ -16,9 +16,11 @@ import com.projects.EduConflux.identity.repository.UserRoleRepository;
 import com.projects.EduConflux.institution.entity.Institution;
 import com.projects.EduConflux.institution.repository.InstitutionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -105,9 +107,11 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public List<UserResponse> getUsers(
+    public Page<UserResponse> getUsers(
             String role,
-            String status) {
+            String status,
+            String search,
+            Pageable pageable) {
 
         Long institutionId =
                 SecurityUtils.getCurrentInstitutionId();
@@ -121,6 +125,7 @@ public class UserService {
                         UserStatus.valueOf(
                                 status.toUpperCase()
                         );
+
             } catch (IllegalArgumentException e) {
 
                 throw new RuntimeException(
@@ -129,28 +134,28 @@ public class UserService {
             }
         }
 
-        List<User> users =
+        Page<User> users =
                 userRepository.findUsersWithFilters(
                         institutionId,
                         role,
-                        userStatus
+                        userStatus,
+                        search,
+                        pageable
                 );
 
-        return users.stream()
-                .map(user -> {
+        return users.map(user -> {
 
-                    List<String> roles =
-                            userRoleRepository
-                                    .findByUserId(user.getId())
-                                    .stream()
-                                    .map(userRole ->
-                                            userRole.getRole().getName()
-                                    )
-                                    .toList();
+            List<String> roles =
+                    userRoleRepository
+                            .findByUserId(user.getId())
+                            .stream()
+                            .map(userRole ->
+                                    userRole.getRole().getName()
+                            )
+                            .toList();
 
-                    return toResponse(user, roles);
-                })
-                .toList();
+            return toResponse(user, roles);
+        });
     }
 
     @Transactional(readOnly = true)

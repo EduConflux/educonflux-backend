@@ -2,6 +2,8 @@ package com.projects.EduConflux.identity.repository;
 
 import com.projects.EduConflux.identity.entity.User;
 import com.projects.EduConflux.identity.entity.UserStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -44,6 +46,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
         SELECT DISTINCT u
         FROM User u
         WHERE u.institution.id = :institutionId
+
         AND (
             :role IS NULL
             OR :role = ''
@@ -54,14 +57,26 @@ public interface UserRepository extends JpaRepository<User, Long> {
                 AND ur.role.name = :role
             )
         )
+
         AND (
             :status IS NULL
             OR u.status = :status
         )
+
+        AND (
+            :search IS NULL
+            OR :search = ''
+            OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(u.personalEmail) LIKE LOWER(CONCAT('%', :search, '%'))
+        )
         """)
-    List<User> findUsersWithFilters(
+    Page<User> findUsersWithFilters(
             @Param("institutionId") Long institutionId,
             @Param("role") String role,
-            @Param("status") UserStatus status
+            @Param("status") UserStatus status,
+            @Param("search") String search,
+            Pageable pageable
     );
 }
