@@ -26,8 +26,8 @@ public class RoleSeeder implements CommandLineRunner {
         );
 
         createRoleIfNotExists(
-                "TEACHER",
-                "Teacher with academic and classroom access"
+                "FACULTY",
+                "Faculty member with academic and classroom access"
         );
 
         createRoleIfNotExists(

@@ -8,6 +8,8 @@ import com.projects.EduConflux.faculty.dto.FacultyResponse;
 import com.projects.EduConflux.faculty.entity.Faculty;
 import com.projects.EduConflux.faculty.entity.FacultyStatus;
 import com.projects.EduConflux.faculty.repository.FacultyRepository;
+import com.projects.EduConflux.identity.dto.UserRequest;
+import com.projects.EduConflux.identity.service.UserService;
 import com.projects.EduConflux.institution.entity.Institution;
 import com.projects.EduConflux.institution.repository.InstitutionRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ public class FacultyService {
     private final FacultyRepository facultyRepository;
     private final DepartmentRepository departmentRepository;
     private final InstitutionRepository institutionRepository;
+    private final UserService userService;
 
     @Transactional(readOnly = true)
     public List<FacultyResponse> getAllFaculty() {
@@ -121,6 +124,40 @@ public class FacultyService {
             );
         }
 
+        /*
+         * Create the EduConflux user account.
+         */
+        UserRequest userRequest = new UserRequest();
+
+        userRequest.setEmail(
+                request.getEmail()
+        );
+
+        userRequest.setPersonalEmail(
+                request.getPersonalEmail()
+        );
+
+        userRequest.setFirstName(
+                request.getFirstName()
+        );
+
+        userRequest.setLastName(
+                request.getLastName()
+        );
+
+        userRequest.setPhone(
+                request.getPhone()
+        );
+
+        userRequest.setRole(
+                "FACULTY"
+        );
+
+        userService.createUser(userRequest);
+
+        /*
+         * Create the Faculty record.
+         */
         Faculty faculty =
                 Faculty.builder()
                         .institution(institution)
@@ -129,6 +166,7 @@ public class FacultyService {
                         .firstName(request.getFirstName())
                         .lastName(request.getLastName())
                         .email(request.getEmail())
+                        .personalEmail(request.getPersonalEmail())
                         .phone(request.getPhone())
                         .designation(request.getDesignation())
                         .qualification(request.getQualification())
@@ -193,6 +231,9 @@ public class FacultyService {
         faculty.setFirstName(request.getFirstName());
         faculty.setLastName(request.getLastName());
         faculty.setEmail(request.getEmail());
+        faculty.setPersonalEmail(
+                request.getPersonalEmail()
+        );
         faculty.setPhone(request.getPhone());
         faculty.setDesignation(request.getDesignation());
         faculty.setQualification(request.getQualification());
@@ -326,6 +367,10 @@ public class FacultyService {
 
         response.setUpdatedAt(
                 faculty.getUpdatedAt()
+        );
+
+        response.setPersonalEmail(
+                faculty.getPersonalEmail()
         );
 
         return response;

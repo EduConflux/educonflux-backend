@@ -15,6 +15,10 @@ import java.time.LocalDateTime;
                 @UniqueConstraint(
                         name = "uk_faculty_institution_employee_id",
                         columnNames = {"institution_id", "employee_id"}
+                ),
+                @UniqueConstraint(
+                        name = "uk_faculty_institution_email",
+                        columnNames = {"institution_id", "email"}
                 )
         }
 )
@@ -56,12 +60,13 @@ public class Faculty {
     @Column(nullable = false, length = 100)
     private String lastName;
 
-    @Column(
-            nullable = false,
-            unique = false,
-            length = 150
-    )
+    // Official EduConflux login email
+    @Column(nullable = false, length = 150)
     private String email;
+
+    // Personal email used to receive temporary credentials
+    @Column(nullable = false, length = 150)
+    private String personalEmail;
 
     @Column(length = 20)
     private String phone;

@@ -43,6 +43,14 @@ public class FacultyRequest {
     )
     private String email;
 
+    @NotBlank(message = "Personal email is required")
+    @Email(message = "Invalid personal email")
+    @Size(
+            max = 150,
+            message = "Personal email cannot exceed 150 characters"
+    )
+    private String personalEmail;
+
     @Size(
             max = 20,
             message = "Phone cannot exceed 20 characters"
