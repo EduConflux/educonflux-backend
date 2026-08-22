@@ -43,4 +43,9 @@ public interface StudentRepository
             Long institutionId,
             Long classSectionId
     );
+
+    Optional<Student> findByInstitutionIdAndEmail(
+            Long institutionId,
+            String email
+    );
 }

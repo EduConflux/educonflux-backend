@@ -303,4 +303,38 @@ public class UserService {
 
         userRepository.save(user);
     }
+
+    @Transactional
+    public void resetPassword(Long userId) {
+
+        Long institutionId =
+                SecurityUtils.getCurrentInstitutionId();
+
+        User user = userRepository
+                .findByIdAndInstitutionId(
+                        userId,
+                        institutionId
+                )
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        String temporaryPassword =
+                generateTemporaryPassword();
+
+        user.setPassword(
+                passwordEncoder.encode(
+                        temporaryPassword
+                )
+        );
+
+        user.setFirstLogin(true);
+
+        userRepository.save(user);
+
+        emailService.sendCredentials(
+                user.getPersonalEmail(),
+                user.getEmail(),
+                temporaryPassword
+        );
+    }
 }

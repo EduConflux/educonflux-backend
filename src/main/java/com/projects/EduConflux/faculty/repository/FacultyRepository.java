@@ -25,4 +25,9 @@ public interface FacultyRepository
             Long institutionId,
             String employeeId
     );
+
+    Optional<Faculty> findByInstitutionIdAndEmail(
+            Long institutionId,
+            String email
+    );
 }

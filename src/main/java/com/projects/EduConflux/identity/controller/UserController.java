@@ -114,4 +114,13 @@ public class UserController {
 
         return ResponseEntity.ok().build();
     }
+
+    @PatchMapping("/{id}/reset-password")
+    public ResponseEntity<Void> resetPassword(
+            @PathVariable Long id) {
+
+        userService.resetPassword(id);
+
+        return ResponseEntity.noContent().build();
+    }
 }

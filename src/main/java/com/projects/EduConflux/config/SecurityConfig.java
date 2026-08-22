@@ -110,6 +110,21 @@ public class SecurityConfig {
                         )
                         .hasRole("INSTITUTION_ADMIN")
 
+                        .requestMatchers(
+                                "/api/admin/timetable/**"
+                        )
+                        .hasRole("INSTITUTION_ADMIN")
+
+                        .requestMatchers(
+                                "/api/student/timetable/**"
+                        )
+                        .hasRole("STUDENT")
+
+                        .requestMatchers(
+                                "/api/faculty/timetable/**"
+                        )
+                        .hasRole("FACULTY")
+
                         // Everything else requires authentication
                         .anyRequest()
                         .authenticated()
