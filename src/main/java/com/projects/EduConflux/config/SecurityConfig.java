@@ -135,6 +135,22 @@ public class SecurityConfig {
                         )
                         .hasRole("STUDENT")
 
+                        .requestMatchers("/api/faculty/classrooms/**")
+                        .hasRole("FACULTY")
+
+                        .requestMatchers(
+                                "/api/faculty/classrooms/*/invitations/**"
+                        )
+                        .hasRole("FACULTY")
+
+                        .requestMatchers(
+                                "/api/student/classrooms/join"
+                        )
+                        .hasRole("STUDENT")
+
+                        .requestMatchers("/api/student/classrooms/**")
+                        .hasRole("STUDENT")
+
                         // Everything else requires authentication
                         .anyRequest()
                         .authenticated()
