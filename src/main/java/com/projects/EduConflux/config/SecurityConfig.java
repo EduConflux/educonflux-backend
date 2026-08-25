@@ -30,6 +30,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/login")
                         .permitAll()
 
+                        .requestMatchers("/ws/**")
+                        .permitAll()
+
                         // Authenticated users only
                         .requestMatchers("/api/auth/change-password")
                         .authenticated()
@@ -147,6 +150,12 @@ public class SecurityConfig {
                                 "/api/student/classrooms/join"
                         )
                         .hasRole("STUDENT")
+
+                        .requestMatchers("/api/student/classrooms/**")
+                        .hasRole("STUDENT")
+
+                        .requestMatchers("/api/faculty/classrooms/**")
+                        .hasRole("FACULTY")
 
                         .requestMatchers("/api/student/classrooms/**")
                         .hasRole("STUDENT")

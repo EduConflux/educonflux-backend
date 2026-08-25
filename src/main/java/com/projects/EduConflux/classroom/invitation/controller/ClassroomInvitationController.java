@@ -1,5 +1,6 @@
 package com.projects.EduConflux.classroom.invitation.controller;
 
+import com.projects.EduConflux.classroom.invitation.dto.CreateInvitationRequest;
 import com.projects.EduConflux.classroom.invitation.dto.InvitationResponse;
 import com.projects.EduConflux.classroom.invitation.dto.JoinClassroomRequest;
 import com.projects.EduConflux.classroom.invitation.service.ClassroomInvitationService;
@@ -28,11 +29,14 @@ public class ClassroomInvitationController {
     )
     public ResponseEntity<InvitationResponse>
     createInvitation(
-            @PathVariable Long classroomId) {
+            @PathVariable Long classroomId,
+            @Valid @RequestBody
+            CreateInvitationRequest request) {
 
         return ResponseEntity.ok(
                 invitationService.createInvitation(
-                        classroomId
+                        classroomId,
+                        request
                 )
         );
     }

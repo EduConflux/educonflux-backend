@@ -2,6 +2,7 @@ package com.projects.EduConflux.classroom.invitation.service;
 
 import com.projects.EduConflux.classroom.entity.Classroom;
 import com.projects.EduConflux.classroom.entity.ClassroomStatus;
+import com.projects.EduConflux.classroom.invitation.dto.CreateInvitationRequest;
 import com.projects.EduConflux.classroom.invitation.dto.InvitationResponse;
 import com.projects.EduConflux.classroom.invitation.dto.JoinClassroomRequest;
 import com.projects.EduConflux.classroom.invitation.entity.ClassroomInvitation;
@@ -10,14 +11,17 @@ import com.projects.EduConflux.classroom.membership.entity.ClassroomMembership;
 import com.projects.EduConflux.classroom.membership.entity.MembershipStatus;
 import com.projects.EduConflux.classroom.membership.repository.ClassroomMembershipRepository;
 import com.projects.EduConflux.classroom.repository.ClassroomRepository;
+import com.projects.EduConflux.common.email.EmailService;
 import com.projects.EduConflux.common.security.SecurityUtils;
 import com.projects.EduConflux.faculty.entity.Faculty;
 import com.projects.EduConflux.faculty.repository.FacultyRepository;
 import com.projects.EduConflux.student.entity.Student;
 import com.projects.EduConflux.student.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.Optional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
@@ -33,6 +37,9 @@ public class ClassroomInvitationService {
     private final ClassroomRepository classroomRepository;
     private final FacultyRepository facultyRepository;
     private final StudentRepository studentRepository;
+    private final EmailService emailService;
+    @Value("${educonflux.frontend.url}")
+    private String frontendUrl;
 
     private final SecureRandom secureRandom =
             new SecureRandom();
@@ -43,7 +50,8 @@ public class ClassroomInvitationService {
      */
     @Transactional
     public InvitationResponse createInvitation(
-            Long classroomId) {
+            Long classroomId,
+            CreateInvitationRequest request) {
 
         Long institutionId =
                 SecurityUtils.getCurrentInstitutionId();
@@ -139,6 +147,38 @@ public class ClassroomInvitationService {
                 invitationRepository.save(
                         invitation
                 );
+
+        String invitationLink =
+                frontendUrl
+                        + "/classroom/join/"
+                        + invitation.getToken();
+
+        for (Long studentId : request.getStudentIds()) {
+
+            Student student =
+                    studentRepository
+                            .findByIdAndInstitutionId(
+                                    studentId,
+                                    institutionId
+                            )
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "Student not found: "
+                                                    + studentId
+                                    ));
+
+            emailService.sendClassroomInvitation(
+                    student.getPersonalEmail(),
+                    student.getFirstName(),
+                    classroom.getName(),
+                    faculty.getFirstName()
+                            + " "
+                            + faculty.getLastName(),
+                    invitationLink,
+                    invitation.getExpiresAt()
+                            .toString()
+            );
+        }
 
 
         return mapToResponse(
@@ -243,17 +283,50 @@ public class ClassroomInvitationService {
 
 
         /*
-         * Prevent duplicate membership.
+         * Check whether a membership record already exists.
          */
-        if (membershipRepository
-                .existsByClassroomIdAndStudentId(
-                        classroom.getId(),
-                        student.getId()
-                )) {
+        Optional<ClassroomMembership> existingMembership =
+                membershipRepository
+                        .findByClassroomIdAndStudentId(
+                                classroom.getId(),
+                                student.getId()
+                        );
 
-            throw new RuntimeException(
-                    "You are already a member of this classroom"
+        if (existingMembership.isPresent()) {
+
+            ClassroomMembership membership =
+                    existingMembership.get();
+
+            /*
+             * ACTIVE means the student is already
+             * inside the classroom.
+             */
+            if (membership.getStatus()
+                    == MembershipStatus.ACTIVE) {
+
+                throw new RuntimeException(
+                        "You are already a member of this classroom"
+                );
+            }
+
+            /*
+             * REMOVED means the student was previously
+             * a member but was removed by the faculty.
+             *
+             * Instead of creating another database row,
+             * reactivate the existing membership.
+             */
+            membership.setStatus(
+                    MembershipStatus.ACTIVE
             );
+
+            membership.setRemovedAt(null);
+
+            membershipRepository.save(
+                    membership
+            );
+
+            return;
         }
 
 
