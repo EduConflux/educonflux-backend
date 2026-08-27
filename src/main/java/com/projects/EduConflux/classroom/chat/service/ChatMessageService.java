@@ -17,9 +17,9 @@ import com.projects.EduConflux.identity.repository.UserRepository;
 import com.projects.EduConflux.student.entity.Student;
 import com.projects.EduConflux.student.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.core.Authentication;
 
 import java.security.Principal;
 import java.util.List;
@@ -35,18 +35,19 @@ public class ChatMessageService {
     private final StudentRepository studentRepository;
     private final UserRepository userRepository;
 
+
+    // =========================================================
+    // GROUP CHAT
+    // =========================================================
+
     @Transactional
     public ChatMessageResponse sendGroupMessage(
             Long classroomId,
             String content,
-            AuthenticatedUser authenticatedUser) {
+            Principal principal) {
 
-        if (authenticatedUser == null) {
-
-            throw new IllegalStateException(
-                    "Authenticated WebSocket user not available"
-            );
-        }
+        AuthenticatedUser authenticatedUser =
+                extractAuthenticatedUser(principal);
 
         Long userId =
                 authenticatedUser.getUserId();
@@ -60,9 +61,8 @@ public class ChatMessageService {
         List<String> roles =
                 authenticatedUser.getRoles();
 
-        /*
-         * Resolve authenticated User.
-         */
+
+        // Resolve authenticated User
         User sender =
                 userRepository
                         .findByIdAndInstitutionId(
@@ -74,10 +74,8 @@ public class ChatMessageService {
                                         "Authenticated user not found"
                                 ));
 
-        /*
-         * Find classroom inside the
-         * authenticated user's institution.
-         */
+
+        // Find classroom inside institution
         Classroom classroom =
                 classroomRepository
                         .findByIdAndInstitutionId(
@@ -89,12 +87,8 @@ public class ChatMessageService {
                                         "Classroom not found"
                                 ));
 
-        /*
-         * STUDENT
-         *
-         * Student must have an ACTIVE
-         * membership in the classroom.
-         */
+
+        // STUDENT
         if (roles.contains("STUDENT")) {
 
             Student student =
@@ -108,6 +102,7 @@ public class ChatMessageService {
                                             "Student not found"
                                     ));
 
+
             ClassroomMembership membership =
                     membershipRepository
                             .findByClassroomIdAndStudentId(
@@ -119,6 +114,7 @@ public class ChatMessageService {
                                             "You are not a member of this classroom"
                                     ));
 
+
             if (membership.getStatus()
                     != MembershipStatus.ACTIVE) {
 
@@ -128,12 +124,8 @@ public class ChatMessageService {
             }
         }
 
-        /*
-         * FACULTY
-         *
-         * Only the faculty who owns the
-         * classroom can send messages.
-         */
+
+        // FACULTY
         else if (roles.contains("FACULTY")) {
 
             Faculty faculty =
@@ -147,6 +139,7 @@ public class ChatMessageService {
                                             "Faculty not found"
                                     ));
 
+
             if (!classroom.getFaculty()
                     .getId()
                     .equals(faculty.getId())) {
@@ -157,10 +150,8 @@ public class ChatMessageService {
             }
         }
 
-        /*
-         * Any other role cannot use
-         * classroom group chat.
-         */
+
+        // Other roles
         else {
 
             throw new RuntimeException(
@@ -168,12 +159,8 @@ public class ChatMessageService {
             );
         }
 
-        /*
-         * Create classroom-wide message.
-         *
-         * recipient = null means
-         * everyone in the classroom.
-         */
+
+        // Create group message
         ChatMessage message =
                 ChatMessage.builder()
                         .classroom(classroom)
@@ -185,17 +172,11 @@ public class ChatMessageService {
                         )
                         .build();
 
+
         ChatMessage savedMessage =
                 chatMessageRepository.save(message);
 
-        /*
-         * Return response.
-         *
-         * @SendTo in the controller will
-         * broadcast this response to:
-         *
-         * /topic/classroom/{classroomId}/chat
-         */
+
         return ChatMessageResponse.builder()
                 .id(savedMessage.getId())
                 .classroomId(
@@ -221,50 +202,22 @@ public class ChatMessageService {
                 .build();
     }
 
+
+    // =========================================================
+    // GROUP CHAT HISTORY
+    // =========================================================
+
     @Transactional(readOnly = true)
     public List<ChatMessageResponse> getChatHistory(
             Long classroomId,
             Principal principal) {
 
-        if (principal == null) {
-            throw new IllegalStateException(
-                    "No authenticated user"
-            );
-        }
-
-        AuthenticatedUser authenticatedUser;
-
-        if (principal instanceof Authentication authentication) {
-
-            Object authenticationPrincipal =
-                    authentication.getPrincipal();
-
-            if (!(authenticationPrincipal
-                    instanceof AuthenticatedUser)) {
-
-                throw new IllegalStateException(
-                        "Authenticated user information not available"
-                );
-            }
-
-            authenticatedUser =
-                    (AuthenticatedUser)
-                            authenticationPrincipal;
-
-        } else if (principal instanceof AuthenticatedUser user) {
-
-            authenticatedUser = user;
-
-        } else {
-
-            throw new IllegalStateException(
-                    "Unsupported principal: "
-                            + principal.getClass().getName()
-            );
-        }
+        AuthenticatedUser authenticatedUser =
+                extractAuthenticatedUser(principal);
 
         Long institutionId =
                 authenticatedUser.getInstitutionId();
+
 
         Classroom classroom =
                 classroomRepository
@@ -277,11 +230,13 @@ public class ChatMessageService {
                                         "Classroom not found"
                                 ));
 
+
         List<ChatMessage> messages =
                 chatMessageRepository
                         .findByClassroomIdOrderByCreatedAtAsc(
                                 classroom.getId()
                         );
+
 
         return messages.stream()
                 .map(message ->
@@ -298,7 +253,9 @@ public class ChatMessageService {
                                                 + " "
                                                 + message.getSender().getLastName()
                                 )
-                                .content(message.getContent())
+                                .content(
+                                        message.getContent()
+                                )
                                 .messageType(
                                         message.getMessageType()
                                 )
@@ -308,5 +265,441 @@ public class ChatMessageService {
                                 .build()
                 )
                 .toList();
+    }
+
+
+    // =========================================================
+    // PRIVATE CHAT SEND
+    // =========================================================
+
+    @Transactional
+    public ChatMessageResponse sendPrivateMessage(
+            Long classroomId,
+            Long recipientId,
+            String content,
+            Principal principal) {
+
+        /*
+         * Get authenticated user from the WebSocket Principal.
+         */
+        AuthenticatedUser authenticatedUser =
+                extractAuthenticatedUser(principal);
+
+
+        Long senderId =
+                authenticatedUser.getUserId();
+
+        Long institutionId =
+                authenticatedUser.getInstitutionId();
+
+        String email =
+                authenticatedUser.getEmail();
+
+        List<String> roles =
+                authenticatedUser.getRoles();
+
+
+        System.out.println("PRIVATE CHAT DEBUG");
+        System.out.println("senderId = " + senderId);
+        System.out.println("institutionId = " + institutionId);
+        System.out.println("email = " + email);
+        System.out.println("roles = " + roles);
+
+
+        // -----------------------------------------------------
+        // Resolve sender
+        // -----------------------------------------------------
+
+        User sender =
+                userRepository
+                        .findByIdAndInstitutionId(
+                                senderId,
+                                institutionId
+                        )
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Authenticated user not found"
+                                ));
+
+
+        // -----------------------------------------------------
+        // Resolve recipient
+        // -----------------------------------------------------
+
+        User recipient =
+                userRepository
+                        .findByIdAndInstitutionId(
+                                recipientId,
+                                institutionId
+                        )
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Recipient not found"
+                                ));
+
+
+        // -----------------------------------------------------
+        // Resolve classroom
+        // -----------------------------------------------------
+
+        Classroom classroom =
+                classroomRepository
+                        .findByIdAndInstitutionId(
+                                classroomId,
+                                institutionId
+                        )
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Classroom not found"
+                                ));
+
+
+        // -----------------------------------------------------
+        // Prevent self messaging
+        // -----------------------------------------------------
+
+        if (senderId.equals(recipientId)) {
+
+            throw new RuntimeException(
+                    "You cannot message yourself"
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // Determine roles
+        // -----------------------------------------------------
+
+        boolean senderIsFaculty =
+                roles.contains("FACULTY");
+
+        boolean senderIsStudent =
+                roles.contains("STUDENT");
+
+
+        boolean recipientIsFaculty =
+                userRepository
+                        .findAllByInstitutionIdAndRoleName(
+                                institutionId,
+                                "FACULTY"
+                        )
+                        .stream()
+                        .anyMatch(user ->
+                                user.getId()
+                                        .equals(recipientId)
+                        );
+
+
+        boolean recipientIsStudent =
+                userRepository
+                        .findAllByInstitutionIdAndRoleName(
+                                institutionId,
+                                "STUDENT"
+                        )
+                        .stream()
+                        .anyMatch(user ->
+                                user.getId()
+                                        .equals(recipientId)
+                        );
+
+
+        // -----------------------------------------------------
+        // Only FACULTY <-> STUDENT
+        // -----------------------------------------------------
+
+        boolean validConversation =
+                (senderIsFaculty && recipientIsStudent)
+                        ||
+                        (senderIsStudent && recipientIsFaculty);
+
+
+        if (!validConversation) {
+
+            throw new RuntimeException(
+                    "Private messaging is only allowed between faculty and students"
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // Student sender must be classroom member
+        // -----------------------------------------------------
+
+        if (senderIsStudent) {
+
+            Student student =
+                    studentRepository
+                            .findByInstitutionIdAndEmail(
+                                    institutionId,
+                                    email
+                            )
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "Student not found"
+                                    ));
+
+
+            ClassroomMembership membership =
+                    membershipRepository
+                            .findByClassroomIdAndStudentId(
+                                    classroomId,
+                                    student.getId()
+                            )
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "You are not a member of this classroom"
+                                    ));
+
+
+            if (membership.getStatus()
+                    != MembershipStatus.ACTIVE) {
+
+                throw new RuntimeException(
+                        "You are not an active member of this classroom"
+                );
+            }
+        }
+
+
+        // -----------------------------------------------------
+        // Faculty sender must own classroom
+        // -----------------------------------------------------
+
+        if (senderIsFaculty) {
+
+            Faculty faculty =
+                    facultyRepository
+                            .findByInstitutionIdAndEmail(
+                                    institutionId,
+                                    email
+                            )
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "Faculty not found"
+                                    ));
+
+
+            if (!classroom.getFaculty()
+                    .getId()
+                    .equals(faculty.getId())) {
+
+                throw new RuntimeException(
+                        "You are not the faculty of this classroom"
+                );
+            }
+        }
+
+
+        // -----------------------------------------------------
+        // Recipient must be classroom member if student
+        // -----------------------------------------------------
+
+        if (recipientIsStudent) {
+
+            Student recipientStudent =
+                    studentRepository
+                            .findByInstitutionIdAndEmail(
+                                    institutionId,
+                                    recipient.getEmail()
+                            )
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "Recipient student not found"
+                                    ));
+
+
+            ClassroomMembership membership =
+                    membershipRepository
+                            .findByClassroomIdAndStudentId(
+                                    classroomId,
+                                    recipientStudent.getId()
+                            )
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "Recipient is not a member of this classroom"
+                                    ));
+
+
+            if (membership.getStatus()
+                    != MembershipStatus.ACTIVE) {
+
+                throw new RuntimeException(
+                        "Recipient is not an active member of this classroom"
+                );
+            }
+        }
+
+
+        // -----------------------------------------------------
+        // Create private message
+        // -----------------------------------------------------
+
+        ChatMessage message =
+                ChatMessage.builder()
+                        .classroom(classroom)
+                        .sender(sender)
+                        .recipient(recipient)
+                        .content(content)
+                        .messageType(
+                                ChatMessageType.TEXT
+                        )
+                        .build();
+
+
+        ChatMessage savedMessage =
+                chatMessageRepository.save(message);
+
+
+        return ChatMessageResponse.builder()
+                .id(savedMessage.getId())
+                .classroomId(
+                        classroom.getId()
+                )
+                .senderId(
+                        sender.getId()
+                )
+                .senderName(
+                        sender.getFirstName()
+                                + " "
+                                + sender.getLastName()
+                )
+                .content(
+                        savedMessage.getContent()
+                )
+                .messageType(
+                        savedMessage.getMessageType()
+                )
+                .createdAt(
+                        savedMessage.getCreatedAt()
+                )
+                .build();
+    }
+
+
+    // =========================================================
+    // PRIVATE CHAT HISTORY
+    // =========================================================
+
+    @Transactional(readOnly = true)
+    public List<ChatMessageResponse> getPrivateConversation(
+            Long classroomId,
+            Long otherUserId,
+            AuthenticatedUser authenticatedUser) {
+
+        if (authenticatedUser == null) {
+
+            throw new IllegalStateException(
+                    "Authenticated user not available"
+            );
+        }
+
+
+        Long currentUserId =
+                authenticatedUser.getUserId();
+
+        Long institutionId =
+                authenticatedUser.getInstitutionId();
+
+
+        Classroom classroom =
+                classroomRepository
+                        .findByIdAndInstitutionId(
+                                classroomId,
+                                institutionId
+                        )
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Classroom not found"
+                                ));
+
+
+        userRepository
+                .findByIdAndInstitutionId(
+                        otherUserId,
+                        institutionId
+                )
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "User not found"
+                        ));
+
+
+        List<ChatMessage> messages =
+                chatMessageRepository
+                        .findPrivateConversation(
+                                classroomId,
+                                currentUserId,
+                                otherUserId
+                        );
+
+
+        return messages.stream()
+                .map(message ->
+                        ChatMessageResponse.builder()
+                                .id(message.getId())
+                                .classroomId(
+                                        message.getClassroom().getId()
+                                )
+                                .senderId(
+                                        message.getSender().getId()
+                                )
+                                .senderName(
+                                        message.getSender().getFirstName()
+                                                + " "
+                                                + message.getSender().getLastName()
+                                )
+                                .content(
+                                        message.getContent()
+                                )
+                                .messageType(
+                                        message.getMessageType()
+                                )
+                                .createdAt(
+                                        message.getCreatedAt()
+                                )
+                                .build()
+                )
+                .toList();
+    }
+
+
+    // =========================================================
+    // AUTHENTICATION HELPER
+    // =========================================================
+
+    private AuthenticatedUser extractAuthenticatedUser(
+            Principal principal) {
+
+        if (principal == null) {
+
+            throw new IllegalStateException(
+                    "No authenticated WebSocket principal"
+            );
+        }
+
+
+        if (!(principal instanceof Authentication authentication)) {
+
+            throw new IllegalStateException(
+                    "Invalid WebSocket principal: "
+                            + principal.getClass().getName()
+            );
+        }
+
+
+        Object authenticationPrincipal =
+                authentication.getPrincipal();
+
+
+        if (!(authenticationPrincipal
+                instanceof AuthenticatedUser authenticatedUser)) {
+
+            throw new IllegalStateException(
+                    "Authenticated user information not available"
+            );
+        }
+
+
+        return authenticatedUser;
     }
 }

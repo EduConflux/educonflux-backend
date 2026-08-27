@@ -12,9 +12,11 @@ import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -25,6 +27,7 @@ public class JwtStompInterceptor implements ChannelInterceptor {
 
     private final JwtService jwtService;
 
+
     @Override
     public Message<?> preSend(
             Message<?> message,
@@ -33,6 +36,14 @@ public class JwtStompInterceptor implements ChannelInterceptor {
         StompHeaderAccessor accessor =
                 StompHeaderAccessor.wrap(message);
 
+
+        /*
+         * =====================================================
+         * CONNECT
+         * =====================================================
+         *
+         * Authenticate the JWT when the client connects.
+         */
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
 
             String authHeader =
@@ -60,13 +71,31 @@ public class JwtStompInterceptor implements ChannelInterceptor {
                         claims.getSubject();
 
                 List<String> roles =
-                        claims.get("roles", List.class);
+                        claims.get(
+                                "roles",
+                                List.class
+                        );
 
                 if (roles == null || roles.isEmpty()) {
+
                     throw new IllegalArgumentException(
                             "No roles found in JWT"
                     );
                 }
+
+
+                Long userId =
+                        claims.get(
+                                "userId",
+                                Long.class
+                        );
+
+                Long institutionId =
+                        claims.get(
+                                "institutionId",
+                                Long.class
+                        );
+
 
                 List<SimpleGrantedAuthority> authorities =
                         roles.stream()
@@ -77,19 +106,15 @@ public class JwtStompInterceptor implements ChannelInterceptor {
                                 )
                                 .toList();
 
+
                 AuthenticatedUser authenticatedUser =
                         new AuthenticatedUser(
-                                claims.get(
-                                        "userId",
-                                        Long.class
-                                ),
+                                userId,
                                 email,
-                                claims.get(
-                                        "institutionId",
-                                        Long.class
-                                ),
+                                institutionId,
                                 roles
                         );
+
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
@@ -98,26 +123,31 @@ public class JwtStompInterceptor implements ChannelInterceptor {
                                 authorities
                         );
 
-                /*
-                 * Store the authenticated user in the
-                 * WebSocket/STOMP session.
-                 *
-                 * This survives subsequent SEND messages.
-                 */
-                if (accessor.getSessionAttributes() != null) {
 
-                    accessor.getSessionAttributes().put(
+                /*
+                 * IMPORTANT:
+                 *
+                 * Attach Authentication to the CONNECT
+                 * message.
+                 */
+                accessor.setUser(authentication);
+
+
+                /*
+                 * Store the AuthenticatedUser in the
+                 * WebSocket session.
+                 */
+                Map<String, Object> sessionAttributes =
+                        accessor.getSessionAttributes();
+
+                if (sessionAttributes != null) {
+
+                    sessionAttributes.put(
                             AUTHENTICATED_USER,
                             authenticatedUser
                     );
                 }
 
-                /*
-                 * Also attach Authentication as Principal.
-                 * This is useful for Spring Security and
-                 * gives us both mechanisms.
-                 */
-                accessor.setUser(authentication);
 
                 System.out.println(
                         "WEBSOCKET JWT AUTHENTICATED: "
@@ -133,14 +163,13 @@ public class JwtStompInterceptor implements ChannelInterceptor {
                         "WEBSOCKET SESSION USER STORED"
                 );
 
-                /*
-                 * Return the modified message.
-                 */
+
                 return MessageBuilder
                         .createMessage(
                                 message.getPayload(),
                                 accessor.getMessageHeaders()
                         );
+
 
             } catch (Exception e) {
 
@@ -150,6 +179,71 @@ public class JwtStompInterceptor implements ChannelInterceptor {
                 );
             }
         }
+
+
+        /*
+         * =====================================================
+         * SUBSEQUENT STOMP MESSAGES
+         * =====================================================
+         *
+         * SEND / SUBSCRIBE / etc.
+         *
+         * Recover the authenticated user from the
+         * WebSocket session.
+         */
+        Map<String, Object> sessionAttributes =
+                accessor.getSessionAttributes();
+
+
+        if (sessionAttributes != null) {
+
+            Object storedUser =
+                    sessionAttributes.get(
+                            AUTHENTICATED_USER
+                    );
+
+
+            if (storedUser instanceof AuthenticatedUser authenticatedUser) {
+
+                List<String> roles =
+                        authenticatedUser.getRoles();
+
+
+                List<SimpleGrantedAuthority> authorities =
+                        roles.stream()
+                                .map(role ->
+                                        new SimpleGrantedAuthority(
+                                                "ROLE_" + role
+                                        )
+                                )
+                                .toList();
+
+
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                authenticatedUser,
+                                null,
+                                authorities
+                        );
+
+
+                /*
+                 * THIS IS THE IMPORTANT PART.
+                 *
+                 * Attach the authentication to every
+                 * subsequent STOMP message.
+                 */
+                accessor.setUser(authentication);
+
+
+                return MessageBuilder
+                        .createMessage(
+                                message.getPayload(),
+                                accessor.getMessageHeaders()
+                        );
+            }
+        }
+
 
         return message;
     }
