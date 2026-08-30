@@ -8,6 +8,8 @@ public enum NotificationType {
 
     ASSIGNMENT,
 
+    LEARNING_MATERIAL,
+
     TIMETABLE_UPDATE,
 
     ATTENDANCE_ALERT,

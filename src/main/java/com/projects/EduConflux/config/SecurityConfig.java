@@ -173,6 +173,26 @@ public class SecurityConfig {
                         .requestMatchers("/api/notifications/**")
                         .hasAnyRole("STUDENT", "FACULTY", "INSTITUTION_ADMIN")
 
+                        .requestMatchers(
+                                "/api/faculty/classrooms/*/learning-materials"
+                        )
+                        .hasRole("FACULTY")
+
+                        .requestMatchers(
+                                "/api/student/classrooms/*/learning-materials"
+                        )
+                        .hasRole("STUDENT")
+
+                        .requestMatchers(
+                                "/api/faculty/classrooms/*/learning-materials"
+                        )
+                        .hasRole("FACULTY")
+
+                        .requestMatchers(
+                                "/api/faculty/learning-materials/**"
+                        )
+                        .hasRole("FACULTY")
+
                         // Everything else requires authentication
                         .anyRequest()
                         .authenticated()

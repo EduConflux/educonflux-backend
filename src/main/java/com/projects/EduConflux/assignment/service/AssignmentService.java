@@ -12,7 +12,12 @@ import com.projects.EduConflux.classroom.repository.ClassroomRepository;
 import com.projects.EduConflux.common.security.SecurityUtils;
 import com.projects.EduConflux.faculty.entity.Faculty;
 import com.projects.EduConflux.faculty.repository.FacultyRepository;
+import com.projects.EduConflux.files.entity.StoredFile;
 import com.projects.EduConflux.files.repository.StoredFileRepository;
+import com.projects.EduConflux.identity.entity.User;
+import com.projects.EduConflux.identity.repository.UserRepository;
+import com.projects.EduConflux.notification.entity.NotificationType;
+import com.projects.EduConflux.notification.service.NotificationService;
 import com.projects.EduConflux.student.entity.Student;
 import com.projects.EduConflux.student.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +25,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.projects.EduConflux.files.entity.StoredFile;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +38,8 @@ public class AssignmentService {
     private final FacultyRepository facultyRepository;
     private final StudentRepository studentRepository;
     private final StoredFileRepository storedFileRepository;
+    private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
 
     /*
@@ -154,6 +162,58 @@ public class AssignmentService {
                 assignmentRepository.save(
                         assignment
                 );
+
+
+        /*
+         * Create assignment notifications
+         * for all active students in the classroom.
+         */
+        List<ClassroomMembership> memberships =
+                membershipRepository
+                        .findByClassroomIdAndStatus(
+                                classroomId,
+                                MembershipStatus.ACTIVE
+                        );
+
+
+        for (ClassroomMembership membership :
+                memberships) {
+
+            Student student =
+                    membership.getStudent();
+
+
+            /*
+             * Find the User account belonging
+             * to this student.
+             */
+            User user =
+                    userRepository
+                            .findByInstitutionIdAndEmail(
+                                    institutionId,
+                                    student.getEmail()
+                            )
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "User account not found for student: "
+                                                    + student.getEmail()
+                                    ));
+
+
+            /*
+             * Create notification.
+             */
+            notificationService.createNotification(
+                    user,
+                    "New Assignment",
+                    "A new assignment \"" +
+                            savedAssignment.getTitle() +
+                            "\" has been posted in " +
+                            classroom.getName(),
+                    NotificationType.ASSIGNMENT,
+                    savedAssignment.getId()
+            );
+        }
 
 
         return mapToResponse(
@@ -319,7 +379,9 @@ public class AssignmentService {
 
         return AssignmentResponse.builder()
 
-                .id(assignment.getId())
+                .id(
+                        assignment.getId()
+                )
 
                 .classroomId(
                         classroom.getId()
