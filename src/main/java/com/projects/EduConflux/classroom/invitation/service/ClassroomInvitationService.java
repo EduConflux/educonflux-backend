@@ -15,6 +15,10 @@ import com.projects.EduConflux.common.email.EmailService;
 import com.projects.EduConflux.common.security.SecurityUtils;
 import com.projects.EduConflux.faculty.entity.Faculty;
 import com.projects.EduConflux.faculty.repository.FacultyRepository;
+import com.projects.EduConflux.identity.entity.User;
+import com.projects.EduConflux.identity.repository.UserRepository;
+import com.projects.EduConflux.notification.entity.NotificationType;
+import com.projects.EduConflux.notification.service.NotificationService;
 import com.projects.EduConflux.student.entity.Student;
 import com.projects.EduConflux.student.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +42,8 @@ public class ClassroomInvitationService {
     private final FacultyRepository facultyRepository;
     private final StudentRepository studentRepository;
     private final EmailService emailService;
+    private final UserRepository userRepository;
+    private final NotificationService notificationService;
     @Value("${educonflux.frontend.url}")
     private String frontendUrl;
 
@@ -177,6 +183,30 @@ public class ClassroomInvitationService {
                     invitationLink,
                     invitation.getExpiresAt()
                             .toString()
+            );
+
+            User user =
+                    userRepository
+                            .findByInstitutionIdAndEmail(
+                                    institutionId,
+                                    student.getEmail()
+                            )
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "User account not found for student: "
+                                                    + student.getEmail()
+                                    ));
+
+            notificationService.createNotification(
+                    user,
+                    "New Classroom Invitation",
+                    faculty.getFirstName()
+                            + " "
+                            + faculty.getLastName()
+                            + " invited you to join "
+                            + classroom.getName(),
+                    NotificationType.CLASSROOM_INVITATION,
+                    invitation.getId()
             );
         }
 

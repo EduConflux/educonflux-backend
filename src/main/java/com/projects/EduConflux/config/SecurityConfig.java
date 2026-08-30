@@ -160,6 +160,19 @@ public class SecurityConfig {
                         .requestMatchers("/api/student/classrooms/**")
                         .hasRole("STUDENT")
 
+                        .requestMatchers(
+                                "/api/student/notifications/**"
+                        )
+                        .hasRole("STUDENT")
+
+                        .requestMatchers(
+                                "/api/faculty/notifications/**"
+                        )
+                        .hasRole("FACULTY")
+
+                        .requestMatchers("/api/notifications/**")
+                        .hasAnyRole("STUDENT", "FACULTY", "INSTITUTION_ADMIN")
+
                         // Everything else requires authentication
                         .anyRequest()
                         .authenticated()
