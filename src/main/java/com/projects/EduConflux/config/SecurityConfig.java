@@ -193,6 +193,7 @@ public class SecurityConfig {
                         )
                         .hasRole("FACULTY")
 
+
                         // Everything else requires authentication
                         .anyRequest()
                         .authenticated()
