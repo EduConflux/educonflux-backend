@@ -193,6 +193,9 @@ public class SecurityConfig {
                         )
                         .hasRole("FACULTY")
 
+                        .requestMatchers("/api/search")
+                        .authenticated()
+
 
                         // Everything else requires authentication
                         .anyRequest()
