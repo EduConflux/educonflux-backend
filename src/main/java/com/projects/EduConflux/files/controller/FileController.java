@@ -1,7 +1,6 @@
 package com.projects.EduConflux.files.controller;
 
 import com.projects.EduConflux.files.dto.FileResponse;
-import com.projects.EduConflux.files.entity.StoredFile;
 import com.projects.EduConflux.files.service.FileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
@@ -11,13 +10,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/files")
 @RequiredArgsConstructor
 public class FileController {
 
     private final FileService fileService;
-
 
     /*
      * Upload a file.
@@ -35,29 +35,23 @@ public class FileController {
         );
     }
 
-
     /*
      * Get file metadata.
      */
     @GetMapping("/{fileId}")
-    public ResponseEntity<FileResponse>
-    getFileDetails(
+    public ResponseEntity<FileResponse> getFileDetails(
             @PathVariable Long fileId) {
 
         return ResponseEntity.ok(
-                fileService.getFileDetails(
-                        fileId
-                )
+                fileService.getFileDetails(fileId)
         );
     }
-
 
     /*
      * Download file.
      */
     @GetMapping("/{fileId}/download")
-    public ResponseEntity<Resource>
-    downloadFile(
+    public ResponseEntity<Resource> downloadFile(
             @PathVariable Long fileId) {
 
         Resource resource =
@@ -71,5 +65,28 @@ public class FileController {
                                 "\""
                 )
                 .body(resource);
+    }
+
+    /*
+     * Get direct Supabase public URL.
+     */
+    @GetMapping("/{fileId}/url")
+    public ResponseEntity<Map<String, String>> getFileUrl(
+            @PathVariable Long fileId) {
+
+        return ResponseEntity.ok(
+                Map.of("url", fileService.getFilePublicUrl(fileId))
+        );
+    }
+
+    /*
+     * Delete file.
+     */
+    @DeleteMapping("/{fileId}")
+    public ResponseEntity<Void> deleteFile(
+            @PathVariable Long fileId) {
+
+        fileService.deleteFile(fileId);
+        return ResponseEntity.noContent().build();
     }
 }

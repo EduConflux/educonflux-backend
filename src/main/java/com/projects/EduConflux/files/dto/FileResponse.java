@@ -15,6 +15,10 @@ public class FileResponse {
 
     private String originalName;
 
+    private String storedName;
+
+    private String fileUrl;
+
     private String contentType;
 
     private Long fileSize;
