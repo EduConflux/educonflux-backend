@@ -262,28 +262,55 @@ public class FileService {
     }
 
     /*
-     * Download object from Supabase via public URL / REST API.
+     * Download object from Supabase via authenticated or public REST API.
      */
     private byte[] downloadViaRest(String storedName) {
         try {
-            String downloadUrl = getPublicUrl(storedName);
-            HttpRequest.Builder builder = HttpRequest.newBuilder()
-                    .uri(URI.create(downloadUrl))
+            String base = supabaseUrl.endsWith("/") ? supabaseUrl.substring(0, supabaseUrl.length() - 1) : supabaseUrl;
+
+            // 1. Try authenticated endpoint first (for private buckets)
+            String authUrl = String.format("%s/storage/v1/object/authenticated/%s/%s", base, bucketName, storedName);
+
+            HttpRequest.Builder authBuilder = HttpRequest.newBuilder()
+                    .uri(URI.create(authUrl))
                     .timeout(Duration.ofSeconds(30))
                     .GET();
 
             if (anonKey != null && !anonKey.isBlank()) {
-                builder.header("apikey", anonKey);
-                builder.header("Authorization", "Bearer " + anonKey);
+                authBuilder.header("apikey", anonKey);
+                authBuilder.header("Authorization", "Bearer " + anonKey);
             }
 
-            HttpResponse<byte[]> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new RuntimeException("Failed to download file from Supabase storage, status: "
-                        + response.statusCode());
+            HttpResponse<byte[]> authResponse = httpClient.send(authBuilder.build(), HttpResponse.BodyHandlers.ofByteArray());
+            if (authResponse.statusCode() >= 200 && authResponse.statusCode() < 300) {
+                return authResponse.body();
             }
 
-            return response.body();
+            // 2. Fallback to public endpoint (for public buckets)
+            String publicUrl = String.format("%s/storage/v1/object/public/%s/%s", base, bucketName, storedName);
+            HttpRequest.Builder publicBuilder = HttpRequest.newBuilder()
+                    .uri(URI.create(publicUrl))
+                    .timeout(Duration.ofSeconds(30))
+                    .GET();
+
+            if (anonKey != null && !anonKey.isBlank()) {
+                publicBuilder.header("apikey", anonKey);
+            }
+
+            HttpResponse<byte[]> publicResponse = httpClient.send(publicBuilder.build(), HttpResponse.BodyHandlers.ofByteArray());
+            if (publicResponse.statusCode() >= 200 && publicResponse.statusCode() < 300) {
+                return publicResponse.body();
+            }
+
+            String errorMsg = authResponse.body() != null && authResponse.body().length > 0
+                    ? new String(authResponse.body(), java.nio.charset.StandardCharsets.UTF_8)
+                    : (publicResponse.body() != null ? new String(publicResponse.body(), java.nio.charset.StandardCharsets.UTF_8) : "No error body");
+
+            log.error("Supabase download failed. Auth status: {}, Public status: {}, Details: {}",
+                    authResponse.statusCode(), publicResponse.statusCode(), errorMsg);
+
+            throw new RuntimeException(String.format("Failed to download file from Supabase storage (status %d): %s",
+                    authResponse.statusCode(), errorMsg));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("File download was interrupted", e);

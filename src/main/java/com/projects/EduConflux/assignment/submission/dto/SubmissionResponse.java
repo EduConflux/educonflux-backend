@@ -25,6 +25,12 @@ public class SubmissionResponse {
 
     private String fileName;
 
+    private String fileContentType;
+
+    private Long fileSize;
+
+    private String fileUrl;
+
     private LocalDateTime submittedAt;
 
     private Integer marks;

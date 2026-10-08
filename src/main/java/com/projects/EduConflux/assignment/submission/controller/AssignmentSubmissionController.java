@@ -49,12 +49,28 @@ public class AssignmentSubmissionController {
     getMySubmission(
             @PathVariable Long assignmentId) {
 
-        return ResponseEntity.ok(
-                submissionService
-                        .getMySubmission(
-                                assignmentId
-                        )
-        );
+        SubmissionResponse response = submissionService.getMySubmission(assignmentId);
+        if (response == null) {
+            return ResponseEntity.noContent().build();
+        }
+
+        return ResponseEntity.ok(response);
+    }
+
+    /*
+     * STUDENT
+     *
+     * Remove / unsubmit own assignment submission.
+     */
+    @DeleteMapping(
+            "/student/assignments/{assignmentId}/submission"
+    )
+    public ResponseEntity<Void>
+    deleteMySubmission(
+            @PathVariable Long assignmentId) {
+
+        submissionService.deleteMySubmission(assignmentId);
+        return ResponseEntity.noContent().build();
     }
 
 

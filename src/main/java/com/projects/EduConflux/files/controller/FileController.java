@@ -54,16 +54,24 @@ public class FileController {
     public ResponseEntity<Resource> downloadFile(
             @PathVariable Long fileId) {
 
-        Resource resource =
-                fileService.getFile(fileId);
+        FileResponse meta = fileService.getFileDetails(fileId);
+        Resource resource = fileService.getFile(fileId);
+
+        String contentType = (meta.getContentType() != null && !meta.getContentType().isBlank())
+                ? meta.getContentType()
+                : "application/octet-stream";
+
+        String filename = (meta.getOriginalName() != null && !meta.getOriginalName().isBlank())
+                ? meta.getOriginalName()
+                : (resource.getFilename() != null ? resource.getFilename() : "download");
 
         return ResponseEntity.ok()
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"" +
-                                resource.getFilename() +
-                                "\""
+                        "attachment; filename=\"" + filename + "\""
                 )
+                .contentType(MediaType.parseMediaType(contentType))
+                .contentLength(meta.getFileSize())
                 .body(resource);
     }
 

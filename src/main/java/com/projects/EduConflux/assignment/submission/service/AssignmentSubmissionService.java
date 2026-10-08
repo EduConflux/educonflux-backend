@@ -220,18 +220,62 @@ public class AssignmentSubmissionService {
     public SubmissionResponse getMySubmission(
             Long assignmentId) {
 
-        Long userId =
-                SecurityUtils.getCurrentUserId();
+        Long institutionId =
+                SecurityUtils.getCurrentInstitutionId();
 
+        String studentEmail =
+                SecurityUtils.getCurrentUserEmail();
 
         Student student =
                 studentRepository
-                        .findById(userId)
+                        .findByInstitutionIdAndEmail(
+                                institutionId,
+                                studentEmail
+                        )
+                        .orElse(null);
+
+        if (student == null) {
+            return null;
+        }
+
+        AssignmentSubmission submission =
+                submissionRepository
+                        .findByAssignmentIdAndStudentId(
+                                assignmentId,
+                                student.getId()
+                        )
+                        .orElse(null);
+
+        if (submission == null) {
+            return null;
+        }
+
+        return mapToResponse(submission);
+    }
+
+    /*
+     * STUDENT
+     *
+     * Remove / unsubmit own assignment submission.
+     */
+    @Transactional
+    public void deleteMySubmission(Long assignmentId) {
+        Long institutionId =
+                SecurityUtils.getCurrentInstitutionId();
+
+        String studentEmail =
+                SecurityUtils.getCurrentUserEmail();
+
+        Student student =
+                studentRepository
+                        .findByInstitutionIdAndEmail(
+                                institutionId,
+                                studentEmail
+                        )
                         .orElseThrow(() ->
                                 new RuntimeException(
-                                        "Student not found"
+                                        "Student profile not found"
                                 ));
-
 
         AssignmentSubmission submission =
                 submissionRepository
@@ -244,8 +288,14 @@ public class AssignmentSubmissionService {
                                         "Submission not found"
                                 ));
 
+        // Check if submission is already graded
+        if (submission.getMarks() != null) {
+            throw new RuntimeException(
+                    "Cannot remove submission because it has already been graded"
+            );
+        }
 
-        return mapToResponse(submission);
+        submissionRepository.delete(submission);
     }
 
 
@@ -361,11 +411,23 @@ public class AssignmentSubmissionService {
                 )
 
                 .fileId(
-                        file.getId()
+                        file != null ? file.getId() : null
                 )
 
                 .fileName(
-                        file.getOriginalName()
+                        file != null ? file.getOriginalName() : null
+                )
+
+                .fileContentType(
+                        file != null ? file.getContentType() : null
+                )
+
+                .fileSize(
+                        file != null ? file.getFileSize() : null
+                )
+
+                .fileUrl(
+                        file != null ? file.getFilePath() : null
                 )
 
                 .submittedAt(
