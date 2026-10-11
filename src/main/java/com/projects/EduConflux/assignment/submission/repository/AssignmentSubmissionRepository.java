@@ -24,4 +24,7 @@ public interface AssignmentSubmissionRepository
             Long assignmentId,
             Long studentId
     );
+
+    List<AssignmentSubmission>
+    findByStudentId(Long studentId);
 }

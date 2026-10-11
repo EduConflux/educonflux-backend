@@ -25,6 +25,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.projects.EduConflux.parent.entity.Parent;
+import com.projects.EduConflux.parent.repository.ParentRepository;
+import com.projects.EduConflux.parent.repository.StudentParentRepository;
+import com.projects.EduConflux.assignment.submission.entity.AssignmentSubmission;
+import com.projects.EduConflux.assignment.submission.repository.AssignmentSubmissionRepository;
 
 import java.util.List;
 
@@ -40,6 +45,9 @@ public class AssignmentService {
     private final StoredFileRepository storedFileRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final ParentRepository parentRepository;
+    private final StudentParentRepository studentParentRepository;
+    private final AssignmentSubmissionRepository assignmentSubmissionRepository;
 
 
     /*
@@ -362,6 +370,87 @@ public class AssignmentService {
                 )
                 .map(this::mapToResponse);
     }
+
+
+    /*
+     * PARENT
+     *
+     * View assignments for a linked child's active classrooms.
+     */
+    @Transactional(readOnly = true)
+    public Page<AssignmentResponse> getParentStudentAssignments(
+            Long studentId,
+            Pageable pageable) {
+
+        Long institutionId = SecurityUtils.getCurrentInstitutionId();
+        Long userId = SecurityUtils.getCurrentUserId();
+
+        Parent parent = parentRepository
+                .findByUserIdAndInstitutionId(userId, institutionId)
+                .orElseThrow(() ->
+                        new RuntimeException("Parent profile not found"));
+
+        Student student = studentRepository
+                .findByIdAndInstitutionId(studentId, institutionId)
+                .orElseThrow(() ->
+                        new RuntimeException("Student not found"));
+
+        boolean linked = studentParentRepository
+                .existsByParentIdAndStudentIdAndInstitutionId(
+                        parent.getId(), studentId, institutionId);
+
+        if (!linked) {
+            throw new RuntimeException(
+                    "You are not authorized to view this student's assignments");
+        }
+
+        List<ClassroomMembership> memberships =
+                membershipRepository.findByStudentIdAndStatus(
+                        studentId,
+                        MembershipStatus.ACTIVE);
+
+        List<Long> classroomIds = memberships.stream()
+                .map(membership -> membership.getClassroom().getId())
+                .distinct()
+                .toList();
+
+        if (classroomIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        return assignmentRepository
+                .findByClassroomIdIn(classroomIds, pageable)
+                .map(assignment -> {
+
+                    AssignmentResponse response = mapToResponse(assignment);
+
+                    var submission = assignmentSubmissionRepository
+                            .findByAssignmentIdAndStudentId(
+                                    assignment.getId(),
+                                    student.getId());
+
+                    if (submission.isEmpty()) {
+                        response.setSubmissionStatus("NOT_SUBMITTED");
+                        return response;
+                    }
+
+                    AssignmentSubmission studentSubmission = submission.get();
+
+                    response.setSubmittedAt(studentSubmission.getSubmittedAt());
+                    response.setMarksAwarded(studentSubmission.getMarks());
+                    response.setRemarks(studentSubmission.getFeedback());
+                    response.setGradedAt(studentSubmission.getGradedAt());
+
+                    response.setSubmissionStatus(
+                            studentSubmission.getGradedAt() != null
+                                    ? "GRADED"
+                                    : "SUBMITTED");
+
+                    return response;
+                });
+    }
+
+
 
 
     /*

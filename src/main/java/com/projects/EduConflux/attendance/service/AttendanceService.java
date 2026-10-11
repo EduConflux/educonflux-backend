@@ -320,7 +320,7 @@ public class AttendanceService {
     }
 
 
-    private AttendanceResponse mapToResponse(
+    public AttendanceResponse mapToResponse(
             Attendance attendance) {
 
         Student student =

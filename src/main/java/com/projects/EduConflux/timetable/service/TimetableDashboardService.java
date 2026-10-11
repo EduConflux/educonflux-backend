@@ -10,6 +10,9 @@ import com.projects.EduConflux.timetable.entity.TimetableEntry;
 import com.projects.EduConflux.timetable.repository.TimetableEntryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.projects.EduConflux.parent.entity.Parent;
+import com.projects.EduConflux.parent.repository.ParentRepository;
+import com.projects.EduConflux.parent.repository.StudentParentRepository;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -24,6 +27,8 @@ public class TimetableDashboardService {
     private final StudentRepository studentRepository;
 
     private final FacultyRepository facultyRepository;
+    private final ParentRepository parentRepository;
+    private final StudentParentRepository studentParentRepository;
 
 
     /*
@@ -230,6 +235,99 @@ public class TimetableDashboardService {
                 .map(this::toResponse)
                 .toList();
     }
+
+
+    /*
+     * PARENT
+     * Today's timetable for a linked child.
+     */
+    public List<TimetableEntryResponse> getParentStudentToday(
+            Long studentId) {
+
+        Long institutionId = SecurityUtils.getCurrentInstitutionId();
+        Long userId = SecurityUtils.getCurrentUserId();
+
+        Parent parent = parentRepository
+                .findByUserIdAndInstitutionId(userId, institutionId)
+                .orElseThrow(() ->
+                        new RuntimeException("Parent profile not found"));
+
+        Student student = studentRepository
+                .findByIdAndInstitutionId(studentId, institutionId)
+                .orElseThrow(() ->
+                        new RuntimeException("Student not found"));
+
+        boolean linked = studentParentRepository
+                .existsByParentIdAndStudentIdAndInstitutionId(
+                        parent.getId(), studentId, institutionId);
+
+        if (!linked) {
+            throw new RuntimeException(
+                    "You are not authorized to view this student's timetable");
+        }
+
+        DayOfWeek today = LocalDate.now().getDayOfWeek();
+
+        return timetableRepository
+                .findByInstitutionIdAndClassSectionIdAndDayOfWeek(
+                        institutionId,
+                        student.getClassSection().getId(),
+                        today)
+                .stream()
+                .filter(entry ->
+                        entry.getStatus()
+                                == com.projects.EduConflux.timetable.entity.TimetableStatus.ACTIVE)
+                .sorted(java.util.Comparator.comparing(
+                        TimetableEntry::getStartTime))
+                .map(this::toResponse)
+                .toList();
+    }
+
+    /*
+     * PARENT
+     * Weekly timetable for a linked child.
+     */
+    public List<TimetableEntryResponse> getParentStudentWeekly(
+            Long studentId) {
+
+        Long institutionId = SecurityUtils.getCurrentInstitutionId();
+        Long userId = SecurityUtils.getCurrentUserId();
+
+        Parent parent = parentRepository
+                .findByUserIdAndInstitutionId(userId, institutionId)
+                .orElseThrow(() ->
+                        new RuntimeException("Parent profile not found"));
+
+        Student student = studentRepository
+                .findByIdAndInstitutionId(studentId, institutionId)
+                .orElseThrow(() ->
+                        new RuntimeException("Student not found"));
+
+        boolean linked = studentParentRepository
+                .existsByParentIdAndStudentIdAndInstitutionId(
+                        parent.getId(), studentId, institutionId);
+
+        if (!linked) {
+            throw new RuntimeException(
+                    "You are not authorized to view this student's timetable");
+        }
+
+        return timetableRepository
+                .findByInstitutionIdAndClassSectionId(
+                        institutionId,
+                        student.getClassSection().getId())
+                .stream()
+                .filter(entry ->
+                        entry.getStatus()
+                                == com.projects.EduConflux.timetable.entity.TimetableStatus.ACTIVE)
+                .sorted(
+                        java.util.Comparator
+                                .comparing(TimetableEntry::getDayOfWeek)
+                                .thenComparing(TimetableEntry::getStartTime))
+                .map(this::toResponse)
+                .toList();
+    }
+
 
 
     /*

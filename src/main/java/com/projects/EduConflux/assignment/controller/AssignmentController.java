@@ -84,4 +84,22 @@ public class AssignmentController {
                 )
         );
     }
+
+
+    /*
+     * PARENT
+     *
+     * View assignments for a linked child.
+     */
+    @GetMapping("/parents/me/students/{studentId}/assignments")
+    public ResponseEntity<Page<AssignmentResponse>>
+    getParentStudentAssignments(
+            @PathVariable Long studentId,
+            Pageable pageable) {
+
+        return ResponseEntity.ok(
+                assignmentService.getParentStudentAssignments(
+                        studentId, pageable));
+    }
+
 }

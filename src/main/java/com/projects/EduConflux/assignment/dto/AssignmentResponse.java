@@ -36,4 +36,15 @@ public class AssignmentResponse {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    // Student submission and grading details
+    private String submissionStatus;
+
+    private LocalDateTime submittedAt;
+
+    private Integer marksAwarded;
+
+    private String remarks;
+
+    private LocalDateTime gradedAt;
 }

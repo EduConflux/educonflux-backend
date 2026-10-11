@@ -193,6 +193,12 @@ public class SecurityConfig {
                         )
                         .hasRole("FACULTY")
 
+                        .requestMatchers("/api/parents/me/**")
+                        .hasRole("PARENT")
+
+                        .requestMatchers("/api/parents/**")
+                        .hasRole("INSTITUTION_ADMIN")
+
                         .requestMatchers("/api/search")
                         .authenticated()
 

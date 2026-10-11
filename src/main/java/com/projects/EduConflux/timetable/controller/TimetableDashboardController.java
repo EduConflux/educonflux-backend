@@ -61,4 +61,26 @@ public class TimetableDashboardController {
                 timetableDashboardService.getFacultyWeekly()
         );
     }
+
+
+    /*
+     * PARENT
+     */
+
+    @GetMapping("/api/parents/me/students/{studentId}/timetable/today")
+    public ResponseEntity<List<TimetableEntryResponse>>
+    getParentStudentToday(@PathVariable Long studentId) {
+
+        return ResponseEntity.ok(
+                timetableDashboardService.getParentStudentToday(studentId));
+    }
+
+    @GetMapping("/api/parents/me/students/{studentId}/timetable")
+    public ResponseEntity<List<TimetableEntryResponse>>
+    getParentStudentWeekly(@PathVariable Long studentId) {
+
+        return ResponseEntity.ok(
+                timetableDashboardService.getParentStudentWeekly(studentId));
+    }
+
 }
