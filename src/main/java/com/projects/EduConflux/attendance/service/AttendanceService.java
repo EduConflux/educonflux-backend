@@ -27,6 +27,20 @@ public class AttendanceService {
     private final FacultyRepository facultyRepository;
     private final TimetableEntryRepository timetableEntryRepository;
 
+    public double calculatePercentage(int attendedClasses, int totalClasses) {
+        if (totalClasses <= 0) {
+            return 0.0;
+        }
+        return ((double) attendedClasses / totalClasses) * 100.0;
+    }
+
+    public boolean isEligibleForExam(int attendedClasses, int totalClasses) {
+        if (totalClasses <= 0) {
+            return false;
+        }
+        double percentage = calculatePercentage(attendedClasses, totalClasses);
+        return percentage >= 75.0;
+    }
 
     @Transactional
     public AttendanceResponse markAttendance(
