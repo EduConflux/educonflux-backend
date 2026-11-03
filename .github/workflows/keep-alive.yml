@@ -1,0 +1,24 @@
+name: Render Keep-Alive Cron
+
+on:
+  schedule:
+    # Fires every 12 minutes (Render free tier sleeps after 15 mins of inactivity)
+    - cron: '*/12 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    name: Ping Render Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Send Keep-Alive HTTP Request
+        run: |
+          TARGET_URL="${{ secrets.RENDER_SERVER_URL || 'https://educonflux-backend.onrender.com' }}"
+          HEALTH_URL="${TARGET_URL%/}/api/health"
+          echo "Pinging health endpoint: $HEALTH_URL"
+          
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}\nTIME_TOTAL:%{time_total}s" --max-time 75 "$HEALTH_URL")
+          echo "$RESPONSE"
+

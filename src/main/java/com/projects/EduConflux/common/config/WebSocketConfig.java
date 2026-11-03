@@ -36,7 +36,13 @@ public class WebSocketConfig
             StompEndpointRegistry registry) {
 
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
+                .setAllowedOriginPatterns(
+                        "https://edu-conflux.vercel.app",
+                        "https://edu-conflux-*.vercel.app",
+                        "http://localhost:5173",
+                        "http://localhost:3000",
+                        "*"
+                )
                 .withSockJS();
     }
 
