@@ -16,6 +16,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
+@org.springframework.context.annotation.Profile("!test")
 @RequiredArgsConstructor
 public class DevDataSeeder {
 
