@@ -105,7 +105,7 @@ public class EmailService {
 
     private void sendViaBrevo(String toEmail, String toName, String subject, String textContent) throws Exception {
         String sName = (brevoSenderName != null && !brevoSenderName.trim().isBlank()) ? brevoSenderName.trim() : "EduConflux";
-        String sEmail = (brevoSenderEmail != null && !brevoSenderEmail.trim().isBlank()) ? brevoSenderEmail.trim() : "educonflux.notifications@gmail.com";
+        String sEmail = (brevoSenderEmail != null && !brevoSenderEmail.trim().isBlank()) ? brevoSenderEmail.trim() : "saiamirtheshxoxo@gmail.com";
 
         StringBuilder json = new StringBuilder();
         json.append("{")
