@@ -44,7 +44,7 @@ public class ClassroomInvitationService {
     private final EmailService emailService;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
-    @Value("${educonflux.frontend.url}")
+    @Value("${educonflux.frontend.url:}")
     private String frontendUrl;
 
     private final SecureRandom secureRandom =
@@ -154,11 +154,6 @@ public class ClassroomInvitationService {
                         invitation
                 );
 
-        String invitationLink =
-                frontendUrl
-                        + "/classroom/join/"
-                        + invitation.getToken();
-
         for (Long studentId : request.getStudentIds()) {
 
             Student student =
@@ -180,7 +175,7 @@ public class ClassroomInvitationService {
                     faculty.getFirstName()
                             + " "
                             + faculty.getLastName(),
-                    invitationLink,
+                    invitation.getToken(),
                     invitation.getExpiresAt()
                             .toString()
             );
